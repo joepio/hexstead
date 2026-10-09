@@ -31,6 +31,7 @@ var bot_step := 0.9
 ## Screenshot mode: `-- --shot out.png [--moves N] [--seed N] [--yaw D]`.
 var shot := ""
 var shot_moves := 0
+var shot_bolt := false
 var _shown_event := {}
 
 
@@ -50,6 +51,7 @@ func _ready() -> void:
 			"--seed": seed_value = int(args[i + 1])
 			"--yaw": island.still = float(args[i + 1])
 			"--phone": phones["p1"] = 1
+			"--bolt": shot_bolt = true
 	if GameNight.launched_by_daemon:
 		GameNight.daemon_connected.connect(_declare_phone_page)
 		GameNight.prepared.connect(_on_prepared)
@@ -279,6 +281,11 @@ func _take_shot() -> void:
 	hud.bind(state, self)
 	hud.on_event(state.last_event)
 	for _f in 90:
+		await get_tree().process_frame
+	if shot_bolt and island.storm:
+		island.storm.get_node("Bolt").show()
+		island.storm.get_node("Flash").light_energy = 4.0
+		await get_tree().process_frame
 		await get_tree().process_frame
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(shot)

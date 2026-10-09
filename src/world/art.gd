@@ -643,12 +643,50 @@ static func token_disc() -> ArrayMesh:
 ## The storm cloud that sits over a field.
 static func storm_cloud() -> ArrayMesh:
 	var kit := MeshKit.new(5)
-	var grey := Color("5b6070")
-	for i in 7:
-		var a := i * 0.9
-		var o := Vector3(cos(a) * 0.45, kit.rng.randf_range(-0.05, 0.12), sin(a) * 0.3)
-		kit.blob(o, Vector3(0.42, 0.3, 0.36) * kit.rng.randf_range(0.8, 1.2), grey.lerp(Color("7c8191"), kit.rng.randf()), 0.18, 4, 7)
-	kit.blob(Vector3(0, 0.15, 0), Vector3(0.55, 0.38, 0.45), Color("6b7080"), 0.15, 4, 8)
+	kit.jitter = 0.03
+	# Billows in a ring and a tall middle, with a flat dark base like a
+	# thundercloud: light on top, slate underneath.
+	var puffs: Array = [[Vector3(0, 0.35, 0), Vector3(0.75, 0.6, 0.62)], [Vector3(0.15, 0.75, -0.05), Vector3(0.5, 0.45, 0.45)]]
+	for i in 8:
+		var a := TAU * i / 8.0 + kit.rng.randf_range(-0.2, 0.2)
+		var o := Vector3(cos(a) * 0.85, kit.rng.randf_range(0.1, 0.3), sin(a) * 0.6)
+		puffs.append([o, Vector3(0.48, 0.42, 0.44) * kit.rng.randf_range(0.8, 1.15)])
+	for p in puffs:
+		kit.blob(p[0], p[1], Color.WHITE, 0.1, 5, 9, true)
+	return _shade_by_height(kit.commit(), Color("3a4255"), Color("9aa3b8"), 0.0, 1.1)
+
+
+## Recolours a mesh from `low` at y0 to `high` at y1 (keeps flat normals).
+static func _shade_by_height(mesh: ArrayMesh, low: Color, high: Color, y0: float, y1: float) -> ArrayMesh:
+	var arrays := mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var colors := PackedColorArray()
+	colors.resize(verts.size())
+	for i in range(0, verts.size(), 3):
+		var y := (verts[i].y + verts[i + 1].y + verts[i + 2].y) / 3.0
+		var c := low.lerp(high, smoothstep(y0, y1, y))
+		colors[i] = c
+		colors[i + 1] = c
+		colors[i + 2] = c
+	arrays[Mesh.ARRAY_COLOR] = colors
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return out
+
+
+## A zigzag lightning bolt from the cloud to the ground, `length` long.
+static func bolt(length: float, seed_value: int) -> ArrayMesh:
+	var kit := MeshKit.new(seed_value)
+	kit.jitter = 0.0
+	var p := Vector3.ZERO
+	var steps := 6
+	for i in steps:
+		var q := Vector3(kit.rng.randf_range(-0.35, 0.35), -length * (i + 1) / steps, kit.rng.randf_range(-0.2, 0.2))
+		var w := 0.12 * (1.0 - float(i) / steps) + 0.04
+		for side in [Vector3(w, 0, 0), Vector3(0, 0, w)]:
+			kit.quad(p - side, p + side, q + side, q - side, Color.WHITE)
+			kit.quad(p + side, p - side, q - side, q + side, Color.WHITE)
+		p = q
 	return kit.commit()
 
 

@@ -36,11 +36,12 @@ mountains, houses and the card pictures are low-poly meshes made by
 
 ## The TV and the phones
 
-The TV shows the island, the settlers' scoreboard, the market card, whose
-turn it is with the dice, the four build cards (lit when the player on turn
-can afford them) and cards flying from fields to whoever they pay. When a
+The TV is for everyone to watch; all choices are made on phones. It shows
+the island, the settlers' scoreboard, the market card, whose turn it is with
+the dice, a price list of what each build costs, and cards flying from fields
+to whoever they pay. The storm is a thundercloud raining on its field. When a
 phone player has to pick a corner, side or field, the TV shows the choices
-glowing too.
+glowing so the table can follow along.
 
 The game declares `phone/` as its phone screen (`declare_companion`), copied
 to the user folder first because GameNight serves it from disk. The phone
@@ -60,7 +61,7 @@ than three players, bots fill up to three.
 | `src/bot.gd` | The bot |
 | `src/main.gd` | GameNight session, phones, bots, screenshot mode |
 | `src/world/` | `mesh_kit.gd` (low-poly builder), `art.gd` (everything on the island), `island.gd` (scene, camera, animations), `water.gdshader` |
-| `src/hud/` | Scoreboard, market and build cards, dice |
+| `src/hud/` | Scoreboard, market card, price list, dice |
 | `phone/` | The phone page; `phone/art/*.png` are rendered by `tools/card_art.gd` |
 
 ## Run and test

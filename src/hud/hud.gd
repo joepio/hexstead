@@ -133,23 +133,62 @@ func _build_market() -> void:
 	root.add_child(market_card)
 
 
+## A price list on the wall for everyone watching: what each build costs
+## and what it's worth. Players buy on their phones.
 func _build_cards() -> void:
-	var i := 0
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", paper_box())
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	panel.offset_left = -36 - 380
+	panel.offset_right = -36
+	panel.offset_top = -24 - 300
+	panel.offset_bottom = -24
+	panel.custom_minimum_size = Vector2(380, 0)
+	root.add_child(panel)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 2)
+	panel.add_child(list)
+	list.add_child(_label("Building costs", TITLE_FONT, 26))
 	for b in BUILDS:
-		var cost: Array = []
+		var row := PanelContainer.new()
+		var hi := StyleBoxFlat.new()
+		hi.bg_color = Color(1.0, 0.85, 0.4, 0.0)
+		hi.set_corner_radius_all(8)
+		hi.content_margin_left = 4
+		hi.content_margin_right = 4
+		row.add_theme_stylebox_override("panel", hi)
+		list.add_child(row)
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 8)
+		row.add_child(line)
+		var pic := TextureRect.new()
+		pic.texture = art(b[0])
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.custom_minimum_size = Vector2(58, 58)
+		line.add_child(pic)
+		var name := VBoxContainer.new()
+		name.add_theme_constant_override("separation", -6)
+		name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(name)
+		name.add_child(_label(b[1], TITLE_FONT, 22))
+		name.add_child(_label(b[2].replace("\n", ", "), BODY_FONT, 16, INK.lerp(PAPER, 0.4)))
+		var cost := HBoxContainer.new()
+		cost.add_theme_constant_override("separation", 0)
+		cost.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(cost)
 		for res in Rules.RESOURCES:
-			if Rules.COST[b[0]].has(res):
-				cost.append([res, Rules.COST[b[0]][res]])
-		var card := CardView.new(b[1], art(b[0]), cost, b[2])
-		card.size = Vector2(170, 252)
-		card.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-		card.pivot_offset = Vector2(85, 252)
-		card.position = Vector2(-3 * 150 - 170 - 30 + i * 150, -252 - 22)
-		card.rotation = deg_to_rad((i - 1.5) * 3.5)
-		card.position.y += absf(i - 1.5) * 8
-		root.add_child(card)
-		build_cards[b[0]] = card
-		i += 1
+			for k in Rules.COST[b[0]].get(res, 0):
+				var icon := TextureRect.new()
+				icon.texture = art(res)
+				icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				icon.custom_minimum_size = Vector2(26, 30)
+				cost.add_child(icon)
+		build_cards[b[0]] = hi
 
 
 func _build_turn() -> void:
@@ -335,20 +374,13 @@ func _process(_delta: float) -> void:
 		return
 	var p := state.player(state.turn)
 	if p.bot:
-		turn_hint.text = "Bot"
+		turn_hint.text = "A bot plays this seat"
 	elif game.has_phone(p):
-		turn_hint.text = "Playing on their phone"
+		turn_hint.text = "Choosing on their phone"
 	elif game.away_clock < game.AWAY_GRACE:
 		turn_hint.text = "Open the GameNight app on your phone (%d)" % ceili(game.AWAY_GRACE - game.away_clock)
 	else:
 		turn_hint.text = "Phone away, a bot plays this turn"
-	# Light up the build cards the player on turn can afford.
-	for kind in build_cards:
-		var card: CardView = build_cards[kind]
-		var can: bool = state.phase == "build" and Rules.can_afford(p, kind) and p.built[kind] < Rules.LIMIT[kind]
-		if card.dim == can:
-			card.dim = not can
-			card.queue_redraw()
 
 
 func say(text: String, hold := 2.2) -> void:
@@ -365,18 +397,15 @@ func say(text: String, hold := 2.2) -> void:
 	_shout_tween.chain().tween_property(shout, "modulate:a", 0.0, 0.5)
 
 
-## A build card hops when someone buys what's on it.
+## The price list row lights up when someone buys what's on it.
 func _flash(kind: String) -> void:
-	var card: CardView = build_cards.get(kind)
-	if not card:
+	var hi: StyleBoxFlat = build_cards.get(kind)
+	if not hi:
 		return
-	var y := card.position.y
 	var tw := create_tween()
-	tw.tween_property(card, "position:y", y - 40, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(card, "glow", 1.0, 0.2)
-	tw.tween_interval(0.5)
-	tw.tween_property(card, "position:y", y, 0.4).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(card, "glow", 0.0, 0.6)
+	tw.tween_property(hi, "bg_color:a", 0.75, 0.15)
+	tw.tween_interval(0.8)
+	tw.tween_property(hi, "bg_color:a", 0.0, 0.8)
 
 
 ## Little resource cards fly from where they were made to whoever gets them.

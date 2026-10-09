@@ -9,6 +9,7 @@ const S := Art.S
 const GROUND := Art.GROUND
 const TOKEN_FONT := preload("res://assets/fonts/AlegreyaSC-Bold.ttf")
 const PIECE_SCALE := 1.45
+const STORM_HEIGHT := 4.4
 const WATER := preload("res://src/world/water.gdshader")
 
 var camera: Camera3D
@@ -374,7 +375,7 @@ func _place_storm(tile_id: int, animate: bool) -> void:
 	if not t:
 		return
 	var aabb: AABB = t.get_child(0).get_aabb()
-	var target := Vector3(aabb.get_center().x, 3.4, aabb.get_center().z)
+	var target := Vector3(aabb.get_center().x, STORM_HEIGHT, aabb.get_center().z)
 	if animate:
 		var tw := create_tween()
 		tw.tween_property(storm, "position", target + Vector3(0, 1.2, 0), 0.5).set_trans(Tween.TRANS_SINE)
@@ -388,33 +389,51 @@ func _make_storm() -> Node3D:
 	var cloud := MeshInstance3D.new()
 	cloud.mesh = Art.storm_cloud()
 	cloud.material_override = ground_mat
-	cloud.scale = Vector3.ONE * 1.5
+	cloud.scale = Vector3(1.35, 1.15, 1.35)
+	cloud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.add_child(cloud)
+	# Curtains of rain all the way down to the field.
 	var rain := CPUParticles3D.new()
-	rain.amount = 160
-	rain.lifetime = 0.7
+	rain.amount = 320
+	rain.lifetime = 0.55
+	rain.preprocess = 1.0
 	rain.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	rain.emission_box_extents = Vector3(1.1, 0.1, 0.8)
+	rain.emission_box_extents = Vector3(1.2, 0.05, 0.85)
 	rain.direction = Vector3.DOWN
-	rain.spread = 3.0
-	rain.gravity = Vector3(0, -9, 0)
-	rain.initial_velocity_min = 3.0
-	rain.initial_velocity_max = 4.0
+	rain.spread = 2.0
+	rain.gravity = Vector3(0, -6, 0)
+	rain.initial_velocity_min = 5.5
+	rain.initial_velocity_max = 6.5
+	rain.local_coords = true
 	var drop := BoxMesh.new()
-	drop.size = Vector3(0.012, 0.22, 0.012)
+	drop.size = Vector3(0.02, 0.45, 0.02)
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.75, 0.85, 1.0, 0.55)
+	mat.albedo_color = Color(0.78, 0.86, 1.0, 0.7)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	drop.material = mat
 	rain.mesh = drop
-	rain.position = Vector3(0, -0.3, 0)
+	rain.position = Vector3(0, 0.1, 0)
 	node.add_child(rain)
+	var bolt := MeshInstance3D.new()
+	bolt.name = "Bolt"
+	bolt.mesh = Art.bolt(STORM_HEIGHT - GROUND, 9)
+	var bolt_mat := StandardMaterial3D.new()
+	bolt_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bolt_mat.albedo_color = Color(1.0, 0.97, 0.8)
+	bolt_mat.emission_enabled = true
+	bolt_mat.emission = Color(1.0, 0.95, 0.7)
+	bolt_mat.emission_energy_multiplier = 4.0
+	bolt.material_override = bolt_mat
+	bolt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	bolt.position = Vector3(0.3, 0.1, 0.2)
+	bolt.visible = false
+	node.add_child(bolt)
 	# Darken the field below: a light with negative energy.
 	var gloom := OmniLight3D.new()
 	gloom.light_energy = -2.2
 	gloom.omni_range = 2.4
-	gloom.position = Vector3(0, -2.4, 0)
+	gloom.position = Vector3(0, GROUND - STORM_HEIGHT + 1.2, 0)
 	gloom.light_negative = true
 	node.add_child(gloom)
 	var flash := OmniLight3D.new()
@@ -422,7 +441,7 @@ func _make_storm() -> Node3D:
 	flash.light_color = Color("dfe8ff")
 	flash.light_energy = 0.0
 	flash.omni_range = 5.0
-	flash.position = Vector3(0, -1.0, 0)
+	flash.position = Vector3(0, -2.0, 0)
 	node.add_child(flash)
 	return node
 
@@ -455,10 +474,16 @@ func lightning() -> void:
 	if not storm:
 		return
 	var flash: OmniLight3D = storm.get_node("Flash")
+	var bolt: MeshInstance3D = storm.get_node("Bolt")
+	bolt.mesh = Art.bolt(STORM_HEIGHT - GROUND, randi())
+	bolt.rotation.y = randf() * TAU
 	var tw := create_tween()
 	for k in 2:
+		tw.tween_callback(bolt.show)
 		tw.tween_property(flash, "light_energy", 8.0, 0.04)
 		tw.tween_property(flash, "light_energy", 0.0, 0.12)
+		tw.tween_callback(bolt.hide)
+		tw.tween_interval(0.06)
 
 
 func _clear_markers() -> void:
