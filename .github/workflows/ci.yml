@@ -1,0 +1,19 @@
+name: CI
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  gamenight-sdk:
+    uses: ontola/gamenight/.github/workflows/godot-sdk-check.yml@main
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot
+        run: |
+          curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/4.5-stable/Godot_v4.5-stable_linux.x86_64.zip
+          unzip -q godot.zip && mv Godot_v4.5-stable_linux.x86_64 godot
+      - name: Import
+        run: ./godot --headless --import || true
+      - name: Rule tests (60 boards, 25 bot games)
+        run: ./godot --headless --script tests/rules_test.gd

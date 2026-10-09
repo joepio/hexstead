@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f4a3a">
+<title>Hexstead</title>
+<link rel="stylesheet" href="phone.css">
+</head>
+<body>
+<header class="bar">
+  <span class="dot" id="you-dot"></span>
+  <div class="who">
+    <strong id="you-name">Hexstead</strong>
+    <span id="turn-line">Connecting to the table…</span>
+  </div>
+  <div class="score"><b id="you-vp">0</b><small id="goal">/8</small></div>
+</header>
+
+<main>
+  <section class="board-wrap">
+    <svg id="board" role="img" aria-label="The island"></svg>
+    <p class="pick" id="pick" hidden></p>
+  </section>
+
+  <section class="hand" id="hand" aria-label="Your cards"></section>
+
+  <section class="actions" id="actions"></section>
+
+  <section class="trade" id="trade" hidden>
+    <h2>Trade with the bank</h2>
+    <p class="hint" id="trade-hint">Give cards, get one of your choice.</p>
+    <div class="trade-row"><span>Give</span><div class="chips" id="give"></div></div>
+    <div class="trade-row"><span>Get</span><div class="chips" id="get"></div></div>
+    <div class="row">
+      <button class="ghost" id="trade-close">Close</button>
+      <button class="main" id="trade-go" disabled>Trade</button>
+    </div>
+  </section>
+
+  <section class="table">
+    <ol id="players"></ol>
+    <ul id="log"></ul>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="/assets/companion.js"></script>
+<script src="phone.js"></script>
+</body>
+</html>

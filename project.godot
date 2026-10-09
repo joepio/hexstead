@@ -1,0 +1,30 @@
+; Engine configuration file.
+
+config_version=5
+
+[application]
+
+config/name="Hexstead"
+config/description="Settle a new hex island every round. The board is on the TV, your cards are on your phone."
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.5", "Forward Plus")
+boot_splash/bg_color=Color(0.07, 0.16, 0.22, 1)
+
+[autoload]
+
+GameNight="*res://addons/gamenight/gamenight.gd"
+GameNightScreen="*res://addons/gamenight/screen.gd"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[rendering]
+
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/screen_space_aa=1
+lights_and_shadows/directional_shadow/size=8192
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
