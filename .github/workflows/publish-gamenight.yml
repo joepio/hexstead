@@ -1,0 +1,20 @@
+# Uploads each green main build to the GameNight preview catalog, once the
+# repository variable GAMENIGHT_PUBLISH_ENABLED is 'true' (off by default).
+name: Publish GameNight preview
+on:
+  workflow_run:
+    workflows: [Build and release]
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  upload:
+    if: vars.GAMENIGHT_PUBLISH_ENABLED == 'true'
+    uses: ontola/gamenight/.github/workflows/publish-game.yml@main
+    secrets: inherit
+    with:
+      artifact: hexstead-windows
+      game: hexstead
+      file: hexstead-windows.zip
+      entrypoint: Hexstead.exe

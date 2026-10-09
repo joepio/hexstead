@@ -1,19 +1,59 @@
-name: CI
-on: [push, pull_request, workflow_dispatch]
+name: Build and release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
+env:
+  GODOT_VERSION: 4.5
 jobs:
   gamenight-sdk:
     uses: ontola/gamenight/.github/workflows/godot-sdk-check.yml@main
-  rules:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Install Godot
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Godot and the Windows export templates
         run: |
-          curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/4.5-stable/Godot_v4.5-stable_linux.x86_64.zip
-          unzip -q godot.zip && mv Godot_v4.5-stable_linux.x86_64 godot
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$RUNNER_TEMP/godot" && rm godot.zip
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dir"
+          unzip -q -j templates.tpz templates/version.txt templates/windows_release_x86_64.exe templates/windows_release_x86_64_console.exe -d "$dir"
+          rm templates.tpz
+          pip install websockets
       - name: Import
-        run: ./godot --headless --import || true
+        run: $RUNNER_TEMP/godot --headless --import || true
       - name: Rule tests (60 boards, 25 bot games)
-        run: ./godot --headless --script tests/rules_test.gd
+        run: $RUNNER_TEMP/godot --headless --script tests/rules_test.gd
+      - name: GameNight lifecycle and phone screens
+        run: python tests/lifecycle.py --godot $RUNNER_TEMP/godot
+      - name: Export Windows build
+        run: |
+          mkdir -p build/windows
+          $RUNNER_TEMP/godot --headless --export-release "Windows" build/windows/Hexstead.exe
+          $RUNNER_TEMP/godot --headless --export-pack "Windows" build/hexstead.pck
+      - name: The exported game serves its phone page
+        run: python tests/lifecycle.py --godot $RUNNER_TEMP/godot --pack build/hexstead.pck
+      - name: Package
+        run: |
+          cd build/windows
+          zip -q -9 hexstead-windows.zip Hexstead*.exe
+          sha256sum hexstead-windows.zip > release-sha256.txt
+          cat release-sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hexstead-windows
+          path: |
+            build/windows/hexstead-windows.zip
+            build/windows/release-sha256.txt
+          if-no-files-found: error

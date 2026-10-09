@@ -41,8 +41,12 @@ var _shout_tween: Tween
 
 static func art(name: String) -> Texture2D:
 	if not _art.has(name):
-		var path := "res://phone/art/%s.png" % name
-		_art[name] = load(path) if ResourceLoader.exists(path) else null
+		# The phone page needs these as plain files, so they aren't imported;
+		# read the PNG ourselves.
+		var img := Image.load_from_file("res://phone/art/%s.png" % name)
+		if img:
+			img.generate_mipmaps()
+		_art[name] = ImageTexture.create_from_image(img) if img else null
 	return _art[name]
 
 

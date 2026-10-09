@@ -5,7 +5,7 @@ Checks the session lifecycle and the phone screens: the game declares its
 phone page, prepares and reports ready, sends a phone its view when it opens,
 accepts a move from that phone, refuses a bad one, and plays a bot seat.
 
-    python3 tests/lifecycle.py [--godot path/to/godot]   (needs `websockets`)
+    python3 tests/lifecycle.py [--godot path/to/godot] [--pack game.pck]   (needs `websockets`)
 """
 import argparse
 import asyncio
@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PORT = 7931
 
 
-async def run(godot: str) -> None:
+async def run(godot: str, pack: str = "") -> None:
     inbox: asyncio.Queue = asyncio.Queue()
     conn = {}
 
@@ -50,7 +50,8 @@ async def run(godot: str) -> None:
     async with websockets.serve(handler, "127.0.0.1", PORT):
         env = dict(os.environ, GAMENIGHT="1", GAMENIGHT_ADDR=f"127.0.0.1:{PORT}",
                    GAMENIGHT_GAME_ID="hexstead", GAMENIGHT_TOKEN="t", HEXSTEAD_BOT_STEP="0.05")
-        proc = subprocess.Popen([godot, "--headless", "--path", str(ROOT)], env=env,
+        game = ["--main-pack", pack] if pack else ["--path", str(ROOT)]
+        proc = subprocess.Popen([godot, "--headless", *game], env=env,
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             hello = await expect("hello")
@@ -110,9 +111,10 @@ async def run(godot: str) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--godot", default=os.environ.get("GODOT", "godot"))
+    ap.add_argument("--pack", default="", help="test an exported .pck instead of the project")
     args = ap.parse_args()
     try:
-        asyncio.run(run(args.godot))
+        asyncio.run(run(args.godot, args.pack))
     except AssertionError as e:
         print("FAIL:", e)
         sys.exit(1)
