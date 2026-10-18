@@ -1,5 +1,5 @@
-@font-face { font-family: "Alegreya"; src: url("fonts/Alegreya.ttf"); font-weight: 400 900; }
-@font-face { font-family: "Alegreya SC"; src: url("fonts/AlegreyaSC-Bold.ttf"); font-weight: 700; }
+@font-face { font-family: "Alegreya"; src: url("fonts/Alegreya.woff2") format("woff2"); font-weight: 400 900; }
+@font-face { font-family: "Alegreya SC"; src: url("fonts/AlegreyaSC-Bold.woff2") format("woff2"); font-weight: 700; }
 
 :root {
   --felt: #2f4a3a;

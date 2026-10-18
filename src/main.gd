@@ -12,7 +12,7 @@ const NEXT_ISLAND := 12.0
 const PHONE_FILES := ["index.html", "phone.js", "phone.css",
 	"art/timber.png", "art/clay.png", "art/wool.png", "art/grain.png", "art/ore.png",
 	"art/road.png", "art/hamlet.png", "art/town.png", "art/festival.png",
-	"fonts/Alegreya.ttf", "fonts/AlegreyaSC-Bold.ttf"]
+	"fonts/Alegreya.woff2", "fonts/AlegreyaSC-Bold.woff2"]
 const BOT_NAMES := ["Bramble", "Cobble", "Thistle", "Juniper", "Marigold"]
 
 var state: Rules
