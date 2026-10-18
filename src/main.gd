@@ -8,11 +8,6 @@ extends Node
 const AWAY_GRACE := 15.0
 ## Seconds after a win before a new island rises.
 const NEXT_ISLAND := 12.0
-## Files the phone page needs, copied out of the game so GameNight can serve them.
-const PHONE_FILES := ["index.html", "phone.js", "phone.css",
-	"art/timber.png", "art/clay.png", "art/wool.png", "art/grain.png", "art/ore.png",
-	"art/road.png", "art/hamlet.png", "art/town.png", "art/festival.png",
-	"fonts/Alegreya.woff2", "fonts/AlegreyaSC-Bold.woff2"]
 const BOT_NAMES := ["Bramble", "Cobble", "Thistle", "Juniper", "Marigold"]
 
 var state: Rules
@@ -119,19 +114,9 @@ func _roster_from(seats: Array, players: Array) -> Array:
 
 # --- Phones ---------------------------------------------------------------
 
-## GameNight serves the phone page from a real folder, so copy it out.
+## GameNight serves the phone page from a real folder; the SDK copies it out.
 func _declare_phone_page() -> void:
-	var root := "user://phone"
-	DirAccess.make_dir_recursive_absolute(root + "/art")
-	DirAccess.make_dir_recursive_absolute(root + "/fonts")
-	for name in PHONE_FILES:
-		var data := FileAccess.get_file_as_bytes("res://phone/" + name)
-		if data.is_empty():
-			continue
-		var f := FileAccess.open(root + "/" + name, FileAccess.WRITE)
-		if f:
-			f.store_buffer(data)
-	GameNight.declare_companion(ProjectSettings.globalize_path(root), "index.html")
+	GameNight.declare_companion_folder("res://phone", "index.html")
 
 
 func has_phone(p: Dictionary) -> bool:
