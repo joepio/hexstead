@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/ontola/gamenight/main/catalog/schema.json",
   "id": "hexstead",
   "title": "Hexstead",
   "tagline": "Settle a new hex island every round. The island is on the TV in 3D, your cards are on your phone.",
