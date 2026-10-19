@@ -11,6 +11,9 @@ var rng := RandomNumberGenerator.new()
 ## How much each face's colour wanders, for a painted look.
 var jitter := 0.05
 var count := 0
+## How much what is drawn next bends in the wind (0 = solid). Stored in UV.x
+## for the ground shader; it bends a part more the higher above the ground.
+var sway := 0.0
 
 
 func _init(seed_value: int = 1) -> void:
@@ -41,15 +44,11 @@ func tri(a: Vector3, b: Vector3, c: Vector3, color: Color) -> void:
 		return
 	n = n.normalized()
 	color = _shade(color)
-	st.set_color(color)
-	st.set_normal(n)
-	st.add_vertex(a)
-	st.set_color(color)
-	st.set_normal(n)
-	st.add_vertex(c)
-	st.set_color(color)
-	st.set_normal(n)
-	st.add_vertex(b)
+	for v in [a, c, b]:
+		st.set_color(color)
+		st.set_normal(n)
+		st.set_uv(Vector2(sway, 0.0))
+		st.add_vertex(v)
 	count += 1
 
 

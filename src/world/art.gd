@@ -214,19 +214,24 @@ static func _flowers(kit: MeshKit, place: Placer, n: int) -> void:
 		if p == Vector2.INF:
 			continue
 		var col: Color = colors[place.rng.randi() % colors.size()]
+		kit.sway = 0.8
 		for k in 3:
 			var o := Vector2(place.rng.randf_range(-0.12, 0.12), place.rng.randf_range(-0.12, 0.12))
 			kit.blob(Vector3(p.x + o.x, GROUND + 0.04, p.y + o.y), Vector3(0.035, 0.03, 0.035), col, 0.1, 2, 4)
 	# Grass tufts all over, which make fields read as fields up close.
-	for i in n * 2:
+	kit.sway = 1.0
+	for i in n * 4:
 		var p := place.spot(0.02, 8, 0.15, 0.48)
 		if p == Vector2.INF:
 			continue
 		place.taken.pop_back()
-		kit.cone(Vector3(p.x, GROUND - 0.01, p.y), 0.06, place.rng.randf_range(0.1, 0.18), 3, C.grass_dark, place.rng.randf() * TAU)
+		var blade: Color = C.grass_dark.lerp(C.grass_light, place.rng.randf() * 0.6)
+		kit.cone(Vector3(p.x, GROUND - 0.01, p.y), 0.06, place.rng.randf_range(0.1, 0.2), 3, blade, place.rng.randf() * TAU)
+	kit.sway = 0.0
 
 
 static func pine(kit: MeshKit, base: Vector3, size: float, rng: RandomNumberGenerator) -> void:
+	kit.sway = 0.6
 	kit.frustum(base, 0.07 * size, 0.05 * size, 0.3 * size, 5, C.trunk)
 	var greens := [C.pine, C.pine_light, C.pine_dark]
 	var y := base.y + 0.2 * size
@@ -237,18 +242,23 @@ static func pine(kit: MeshKit, base: Vector3, size: float, rng: RandomNumberGene
 		kit.cone(Vector3(base.x, y, base.z), w, 0.62 * size, 7, tone, spin + layer)
 		y += 0.36 * size
 		w *= 0.74
+	kit.sway = 0.0
 
 
 static func round_tree(kit: MeshKit, base: Vector3, size: float, rng: RandomNumberGenerator) -> void:
+	kit.sway = 0.6
 	kit.frustum(base, 0.07 * size, 0.05 * size, 0.42 * size, 5, C.trunk)
 	var tone: Color = C.leaf.lerp(C.leaf_light, rng.randf())
 	kit.blob(base + Vector3(0, 0.62 * size, 0), Vector3(0.36, 0.32, 0.36) * size, tone, 0.2, 4, 7)
 	kit.blob(base + Vector3(0.14 * size, 0.82 * size, 0.05 * size), Vector3(0.22, 0.2, 0.22) * size, tone.lightened(0.08), 0.2, 3, 6)
+	kit.sway = 0.0
 
 
 static func bush(kit: MeshKit, base: Vector3, size: float, rng: RandomNumberGenerator) -> void:
 	var tone: Color = C.leaf.lerp(C.grass_dark, rng.randf())
+	kit.sway = 0.9
 	kit.blob(base + Vector3(0, 0.08 * size, 0), Vector3(0.2, 0.15, 0.2) * size, tone, 0.25, 3, 6, true)
+	kit.sway = 0.0
 
 
 static func _forest(kit: MeshKit, place: Placer) -> void:
@@ -323,7 +333,9 @@ static func _farm(kit: MeshKit, place: Placer) -> Array:
 				continue
 			var hgt := rng.randf_range(0.16, 0.24)
 			var tone: Color = C.grain_light.lerp(C.hay, rng.randf())
+			kit.sway = 1.4
 			kit.cone(Vector3(p.x, GROUND - 0.01, p.y), 0.065, hgt, 4, tone, rng.randf() * TAU)
+			kit.sway = 0.0
 	# Hay bales.
 	for i in 3:
 		var p := place.spot(0.2, 20, 0.3, 0.6)
@@ -494,7 +506,9 @@ static func _lake(kit: MeshKit, place: Placer) -> Array:
 			continue
 		for k in 3:
 			var o := Vector2(rng.randf_range(-0.08, 0.08), rng.randf_range(-0.08, 0.08))
+			kit.sway = 1.2
 			kit.cone(Vector3(p.x + o.x, GROUND - 0.12, p.y + o.y), 0.025, rng.randf_range(0.25, 0.4), 3, C.reed)
+			kit.sway = 0.0
 	for i in 5:
 		var a := rng.randf() * TAU
 		var p := c + Vector2(cos(a), sin(a)) * rng.randf_range(0.3, 0.9)

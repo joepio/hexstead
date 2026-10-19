@@ -11,6 +11,7 @@ const TOKEN_FONT := preload("res://assets/fonts/AlegreyaSC-Bold.ttf")
 const PIECE_SCALE := 1.45
 const STORM_HEIGHT := 4.4
 const WATER := preload("res://src/world/water.gdshader")
+const GROUND_SHADER := preload("res://src/world/ground.gdshader")
 
 var camera: Camera3D
 var sun: DirectionalLight3D
@@ -24,7 +25,7 @@ var storm: Node3D
 var storm_tile := 0
 var clouds: Array = []
 var spinners: Array = []
-var ground_mat: StandardMaterial3D
+var ground_mat: ShaderMaterial
 var lake_mat: ShaderMaterial
 var marker_mat: StandardMaterial3D
 var aim_mat: StandardMaterial3D
@@ -38,18 +39,17 @@ var _piece_cache := {}
 
 
 func _ready() -> void:
-	ground_mat = StandardMaterial3D.new()
-	ground_mat.vertex_color_use_as_albedo = true
-	ground_mat.vertex_color_is_srgb = true
-	ground_mat.roughness = 0.88
-	ground_mat.specular = 0.25
+	ground_mat = ShaderMaterial.new()
+	ground_mat.shader = GROUND_SHADER
 	lake_mat = ShaderMaterial.new()
 	lake_mat.shader = WATER
 	lake_mat.set_shader_parameter("depth_scale", 0.35)
-	lake_mat.set_shader_parameter("foam_width", 0.08)
+	lake_mat.set_shader_parameter("foam_width", 0.04)
 	lake_mat.set_shader_parameter("wave_height", 0.0)
 	lake_mat.set_shader_parameter("shallow", Color(0.36, 0.72, 0.74))
-	lake_mat.set_shader_parameter("deep", Color(0.12, 0.42, 0.55))
+	lake_mat.set_shader_parameter("deep", Color(0.08, 0.34, 0.42))
+	lake_mat.set_shader_parameter("absorb", Vector3(1.4, 0.6, 0.45))
+	lake_mat.set_shader_parameter("refraction", 0.02)
 	marker_mat = StandardMaterial3D.new()
 	marker_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	marker_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -67,8 +67,8 @@ func _ready() -> void:
 func _setup_world() -> void:
 	var env := Environment.new()
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("6f9fd0")
-	sky_mat.sky_horizon_color = Color("e9d6b8")
+	sky_mat.sky_top_color = Color("5f93cc")
+	sky_mat.sky_horizon_color = Color("f0dcbc")
 	sky_mat.ground_horizon_color = Color("bfc9c2")
 	sky_mat.ground_bottom_color = Color("2b4f66")
 	sky_mat.sun_angle_max = 20.0
@@ -86,28 +86,37 @@ func _setup_world() -> void:
 	env.ssao_radius = 0.6
 	env.ssao_intensity = 1.6
 	env.ssao_power = 1.3
+	# Light bouncing off grass and sand tints the shadows next to it.
+	env.ssil_enabled = true
+	env.ssil_radius = 3.0
+	env.ssil_intensity = 0.9
 	env.glow_enabled = true
-	env.glow_intensity = 0.2
-	env.glow_bloom = 0.04
-	env.glow_hdr_threshold = 1.1
+	env.glow_intensity = 0.35
+	env.glow_bloom = 0.05
+	env.glow_hdr_threshold = 1.0
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	env.fog_enabled = true
-	env.fog_light_color = Color("c9dbe6")
-	env.fog_density = 0.0012
+	env.fog_light_color = Color("dfe3dc")
+	env.fog_sun_scatter = 0.25
+	env.fog_density = 0.0018
+	env.fog_aerial_perspective = 0.4
 	env.fog_sky_affect = 0.2
 	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.2
-	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.15
+	env.adjustment_contrast = 1.1
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 
 	sun = DirectionalLight3D.new()
-	sun.light_color = Color("fff0d6")
-	sun.light_energy = 1.7
+	sun.light_color = Color("ffe6c2")
+	sun.light_energy = 1.8
 	sun.shadow_enabled = true
-	sun.shadow_blur = 1.5
-	sun.directional_shadow_max_distance = 90.0
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	# A sun with a real size gives soft shadows that sharpen near what casts them.
+	sun.light_angular_distance = 1.2
+	sun.shadow_blur = 1.0
+	sun.directional_shadow_max_distance = 70.0
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	sun.rotation = Vector3(deg_to_rad(-36), deg_to_rad(-40), 0)
 	add_child(sun)
 	# A cool fill from the other side keeps shadows from going flat.
@@ -125,16 +134,24 @@ func _setup_world() -> void:
 	sea.mesh = plane
 	var sea_mat := ShaderMaterial.new()
 	sea_mat.shader = WATER
+	sea_mat.set_shader_parameter("sky_top", Color("5f93cc"))
+	sea_mat.set_shader_parameter("sky_horizon", Color("f0dcbc"))
 	sea.material_override = sea_mat
 	sea.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(sea)
 	var floor_node := MeshInstance3D.new()
 	var floor_plane := PlaneMesh.new()
 	floor_plane.size = Vector2(400, 400)
+	floor_plane.subdivide_width = 200
+	floor_plane.subdivide_depth = 200
 	floor_node.mesh = floor_plane
-	var floor_mat := StandardMaterial3D.new()
-	floor_mat.albedo_color = Color("8c8a62")
-	floor_mat.roughness = 1.0
+	var floor_mat := ShaderMaterial.new()
+	floor_mat.shader = GROUND_SHADER
+	floor_mat.set_shader_parameter("tint", Color("b9ad7c"))
+	floor_mat.set_shader_parameter("kit_mesh", false)
+	floor_mat.set_shader_parameter("shelf_start", 13.0)
+	floor_mat.set_shader_parameter("shelf_end", 30.0)
+	floor_mat.set_shader_parameter("shelf_drop", 7.0)
 	floor_node.material_override = floor_mat
 	floor_node.position.y = -1.7
 	add_child(floor_node)
