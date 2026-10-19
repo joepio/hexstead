@@ -58,7 +58,7 @@ func _ready() -> void:
 	marker_mat.emission = Color(1, 0.9, 0.55)
 	aim_mat = StandardMaterial3D.new()
 	aim_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	aim_mat.albedo_color = Color(1, 1, 0.92)
+	aim_mat.albedo_color = Color(1, 0.84, 0.25)
 	aim_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	marker_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_setup_world()
@@ -615,7 +615,7 @@ func aim(id: int) -> void:
 		var m: MeshInstance3D = target_nodes[key]
 		var on: bool = key == id
 		m.material_override = aim_mat if on else marker_mat
-		var big := 2.2 if target_kind in ["hamlet", "town"] else 1.6 if target_kind == "road" else 1.12
+		var big := 2.6 if target_kind in ["hamlet", "town"] else 1.6 if target_kind == "road" else 1.12
 		var tw := m.create_tween()
 		tw.tween_property(m, "scale", Vector3.ONE * (big if on else 1.0), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
