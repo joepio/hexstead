@@ -2,7 +2,7 @@
 
 A building and trading game for 2 to 6 players on GameNight. The TV shows a
 new hex island in 3D every round; each player's cards and choices are on
-their own phone, through GameNight's phone screens. Godot 4.5, MIT licensed.
+their own phone, through GameNight's phone screens. Godot 4.5 (CI pins 4.5.2), MIT licensed.
 
 Everything you see is built from code: fields, trees, sheep, windmills,
 mountains, houses and the card pictures are low-poly meshes made by
@@ -69,7 +69,7 @@ than three players, bots fill up to three.
 ```sh
 godot --path .                                   # four bots, to watch
 godot --headless --script tests/rules_test.gd    # 60 boards, 25 bot games
-python3 tests/lifecycle.py                       # fake GameNight host + phone (needs websockets)
+python3 tests/lifecycle.py                       # fake GameNight host + phone (SDK fake_host.py)
 tools/shot.sh out.png --moves 60 --seed 5        # render the TV (xvfb + Vulkan, lavapipe works)
 xvfb-run -a godot --rendering-driver vulkan --path . --script tools/card_art.gd   # re-render card art
 ```

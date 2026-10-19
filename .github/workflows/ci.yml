@@ -7,8 +7,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-env:
-  GODOT_VERSION: 4.5
 jobs:
   gamenight-sdk:
     uses: ontola/gamenight/.github/workflows/godot-sdk-check.yml@main
@@ -21,29 +19,23 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install Godot and the Windows export templates
-        run: |
-          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
-          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
-          unzip -q godot.zip && mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$RUNNER_TEMP/godot" && rm godot.zip
-          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
-          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
-          mkdir -p "$dir"
-          unzip -q -j templates.tpz templates/version.txt templates/windows_release_x86_64.exe templates/windows_release_x86_64_console.exe -d "$dir"
-          rm templates.tpz
-          pip install websockets
+        uses: ontola/gamenight/.github/actions/setup-godot@main
+        with:
+          version: 4.5.2
+          export-templates: windows_release_x86_64.exe windows_release_x86_64_console.exe
       - name: Import
-        run: $RUNNER_TEMP/godot --headless --import || true
+        run: $GODOT --headless --import || true
       - name: Rule tests (60 boards, 25 bot games)
-        run: $RUNNER_TEMP/godot --headless --script tests/rules_test.gd
+        run: $GODOT --headless --script tests/rules_test.gd
       - name: GameNight lifecycle and phone screens
-        run: python tests/lifecycle.py --godot $RUNNER_TEMP/godot
+        run: python tests/lifecycle.py --godot "$GODOT"
       - name: Export Windows build
         run: |
           mkdir -p build/windows
-          $RUNNER_TEMP/godot --headless --export-release "Windows" build/windows/Hexstead.exe
-          $RUNNER_TEMP/godot --headless --export-pack "Windows" build/hexstead.pck
+          "$GODOT" --headless --export-release "Windows" build/windows/Hexstead.exe
+          "$GODOT" --headless --export-pack "Windows" build/hexstead.pck
       - name: The exported game serves its phone page
-        run: python tests/lifecycle.py --godot $RUNNER_TEMP/godot --pack build/hexstead.pck
+        run: python tests/lifecycle.py --godot "$GODOT" --pack build/hexstead.pck
       - name: Package
         run: |
           cd build/windows

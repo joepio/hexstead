@@ -5,113 +5,78 @@ Checks the session lifecycle and the phone screens: the game declares its
 phone page, prepares and reports ready, sends a phone its view when it opens,
 accepts a move from that phone, refuses a bad one, and plays a bot seat.
 
-    python3 tests/lifecycle.py [--godot path/to/godot] [--pack game.pck]   (needs `websockets`)
+    python3 tests/lifecycle.py [--godot path/to/godot] [--pack game.pck]
+
+The host is the GameNight SDK's addons/gamenight/fake_host.py (standard
+library only).
 """
 import argparse
-import asyncio
-import json
 import os
-import subprocess
 import sys
+import time
 from pathlib import Path
 
-import websockets
-
 ROOT = Path(__file__).resolve().parents[1]
-PORT = 7931
+sys.path.insert(0, str(ROOT / "addons" / "gamenight"))
+from fake_host import FakeHost  # noqa: E402
 
 
-async def run(godot: str, pack: str = "") -> None:
-    inbox: asyncio.Queue = asyncio.Queue()
-    conn = {}
+def run(godot: str, pack: str = "") -> None:
+    with FakeHost(godot, "hexstead", path=ROOT, pack=pack, timeout=20,
+                  env={"HEXSTEAD_BOT_STEP": "0.05"}) as host:
+        # FakeHost already checked the hello's game id and launch token.
+        host.welcome()
+        page = host.expect("declare_companion")
+        root = Path(page["root"])
+        assert (root / page["entry"]).is_file(), page
+        assert (root / "art" / "timber.png").is_file(), "card art is copied for the phone"
+        print("ok: phone page declared at", root)
 
-    async def handler(ws):
-        conn["ws"] = ws
-        try:
-            async for text in ws:
-                await inbox.put(json.loads(text))
-        except websockets.ConnectionClosed:
-            pass
+        seats = [
+            {"index": 0, "occupant": {"kind": "player", "player_id": "joep"}},
+            {"index": 1, "occupant": {"kind": "ai"}},
+        ]
+        players = [{"id": "joep", "name": "Joep", "color": "#3d8fe0"}]
+        host.prepare(seats, players, session="s1")
+        host.start()
+        print("ok: prepared and ready")
 
-    async def expect(kind, check=lambda m: True, timeout=20.0):
-        loop = asyncio.get_running_loop()
-        end = loop.time() + timeout
-        while True:
-            left = end - loop.time()
-            if left <= 0:
-                raise AssertionError(f"timed out waiting for {kind}")
-            m = await asyncio.wait_for(inbox.get(), left)
-            if m.get("type") == kind and check(m):
-                return m
+        host.phone("joep", connected=True)
+        view = host.expect("companion_message", lambda m: m.get("player_id") == "joep")["data"]
+        assert view["t"] == "view" and view["you"]["name"] == "Joep", view["you"]
+        assert len(view["players"]) == 3, "bots fill up to three"
+        assert view["you"]["turn"] and view["phase"] == "setup_hamlet"
+        print("ok: phone gets its view")
 
-    async def send(msg):
-        await conn["ws"].send(json.dumps(msg))
+        host.phone("joep", {"a": "roll"})
+        err = host.expect("companion_message", lambda m: m["data"].get("t") == "error")
+        print("ok: refused:", err["data"]["text"])
 
-    async with websockets.serve(handler, "127.0.0.1", PORT):
-        env = dict(os.environ, GAMENIGHT="1", GAMENIGHT_ADDR=f"127.0.0.1:{PORT}",
-                   GAMENIGHT_GAME_ID="hexstead", GAMENIGHT_TOKEN="t", HEXSTEAD_BOT_STEP="0.05")
-        game = ["--main-pack", pack] if pack else ["--path", str(ROOT)]
-        proc = subprocess.Popen([godot, "--headless", *game], env=env,
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        try:
-            hello = await expect("hello")
-            assert hello["game"] == "hexstead" and hello.get("token") == "t", hello
-            await send({"type": "welcome", "party": {}})
-            page = await expect("declare_companion")
-            root = Path(page["root"])
-            assert (root / page["entry"]).is_file(), page
-            assert (root / "art" / "timber.png").is_file(), "card art is copied for the phone"
-            print("ok: phone page declared at", root)
+        # Pointing at spots while picking only moves the hint on the TV.
+        for aim in [view["legal"]["hamlet"][1], 99999, view["legal"]["hamlet"][0]]:
+            host.phone("joep", {"a": "aim", "kind": "hamlet", "id": aim})
+        host.phone("joep", {"a": "aim", "kind": "storm", "id": 1})
+        print("ok: aiming is quiet")
 
-            seats = [
-                {"index": 0, "occupant": {"kind": "player", "player_id": "joep"}},
-                {"index": 1, "occupant": {"kind": "ai"}},
-            ]
-            players = [{"id": "joep", "name": "Joep", "color": "#3d8fe0"}]
-            await send({"type": "prepare", "game": "hexstead", "session": "s1", "seats": seats, "players": players})
-            await expect("ready", lambda m: m.get("session") == "s1")
-            await send({"type": "start", "session": "s1"})
-            print("ok: prepared and ready")
+        spot = view["legal"]["hamlet"][0]
+        host.phone("joep", {"a": "hamlet", "id": spot})
+        view = host.expect("companion_message", lambda m: m["data"].get("phase") == "setup_road")["data"]
+        road = view["legal"]["road"][0]
+        host.phone("joep", {"a": "road", "id": road})
+        # The bots take their opening turns, then it comes back to Joep.
+        view = host.expect("companion_message",
+                           lambda m: m["data"].get("t") == "view" and m["data"]["you"]["turn"]
+                           and m["data"]["phase"] == "setup_hamlet")["data"]
+        owners = {v.get("owner") for v in view["verts"] if v.get("owner")}
+        assert owners == {1, 2, 3}, owners
+        print("ok: moves from the phone, bots play their seats")
 
-            await send({"type": "companion_presence", "player_id": "joep", "connected": True})
-            view = (await expect("companion_message", lambda m: m.get("player_id") == "joep"))["data"]
-            assert view["t"] == "view" and view["you"]["name"] == "Joep", view["you"]
-            assert len(view["players"]) == 3, "bots fill up to three"
-            assert view["you"]["turn"] and view["phase"] == "setup_hamlet"
-            print("ok: phone gets its view")
-
-            await send({"type": "companion_message", "player_id": "joep", "data": {"a": "roll"}})
-            err = await expect("companion_message", lambda m: m["data"].get("t") == "error")
-            print("ok: refused:", err["data"]["text"])
-
-            # Pointing at spots while picking only moves the hint on the TV.
-            for aim in [view["legal"]["hamlet"][1], 99999, view["legal"]["hamlet"][0]]:
-                await send({"type": "companion_message", "player_id": "joep", "data": {"a": "aim", "kind": "hamlet", "id": aim}})
-            await send({"type": "companion_message", "player_id": "joep", "data": {"a": "aim", "kind": "storm", "id": 1}})
-            print("ok: aiming is quiet")
-
-            spot = view["legal"]["hamlet"][0]
-            await send({"type": "companion_message", "player_id": "joep", "data": {"a": "hamlet", "id": spot}})
-            view = (await expect("companion_message", lambda m: m["data"].get("phase") == "setup_road"))["data"]
-            road = view["legal"]["road"][0]
-            await send({"type": "companion_message", "player_id": "joep", "data": {"a": "road", "id": road}})
-            # The bots take their opening turns, then it comes back to Joep.
-            view = (await expect("companion_message",
-                                 lambda m: m["data"].get("t") == "view" and m["data"]["you"]["turn"]
-                                 and m["data"]["phase"] == "setup_hamlet"))["data"]
-            owners = {v.get("owner") for v in view["verts"] if v.get("owner")}
-            assert owners == {1, 2, 3}, owners
-            print("ok: moves from the phone, bots play their seats")
-
-            await send({"type": "pause", "session": "s1"})
-            await send({"type": "resume", "session": "s1"})
-            await send({"type": "dispose", "session": "s1"})
-            await asyncio.sleep(0.5)
-            assert proc.poll() is None, "the game keeps running between sessions"
-            print("ok: pause, resume, dispose")
-        finally:
-            proc.terminate()
-            proc.wait(timeout=10)
+        host.pause()
+        host.resume()
+        host.dispose()
+        time.sleep(0.5)
+        assert host.process.poll() is None, "the game keeps running between sessions"
+        print("ok: pause, resume, dispose")
 
 
 def main() -> None:
@@ -120,7 +85,7 @@ def main() -> None:
     ap.add_argument("--pack", default="", help="test an exported .pck instead of the project")
     args = ap.parse_args()
     try:
-        asyncio.run(run(args.godot, args.pack))
+        run(args.godot, args.pack)
     except AssertionError as e:
         print("FAIL:", e)
         sys.exit(1)
