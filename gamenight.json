@@ -7,7 +7,8 @@
   "players": {
     "min": 2,
     "max": 6,
-    "best": 4
+    "best": 4,
+    "play_with": "phone"
   },
   "match_minutes": 25,
   "price": "free",
