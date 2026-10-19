@@ -34,6 +34,12 @@ var turn_name: Label
 var turn_hint: Label
 var turn_dot: Panel
 var dice: DiceView
+## The big throw in the middle of the TV.
+var dice3d: Dice
+var _pending_roll := {}
+
+## The dice have landed and the total is up: time to show what it brings.
+signal roll_landed(event: Dictionary)
 var log_box: VBoxContainer
 var shout: Label
 var _shout_tween: Tween
@@ -65,6 +71,15 @@ func _ready() -> void:
 	_build_cards()
 	_build_turn()
 	_build_log()
+	dice3d = Dice.new()
+	dice3d.set_anchors_preset(Control.PRESET_CENTER)
+	dice3d.offset_left = -640
+	dice3d.offset_right = 640
+	dice3d.offset_top = -430
+	dice3d.offset_bottom = 330
+	root.add_child(dice3d)
+	dice3d.label.add_theme_font_override("font", TITLE_FONT)
+	dice3d.shown.connect(_on_dice_shown)
 	shout = _label("", TITLE_FONT, 64, Color("fff6dc"))
 	shout.add_theme_constant_override("outline_size", 14)
 	shout.add_theme_color_override("font_outline_color", Color(0.18, 0.12, 0.06, 0.85))
@@ -302,12 +317,8 @@ func on_event(event: Dictionary) -> void:
 		return
 	match event.kind:
 		"roll":
-			dice.roll(event.dice)
-			if event.sum == 7:
-				say("A storm is coming!")
-			for tid in event.got:
-				for gain in event.got[tid]:
-					_fly(state.tile(tid).res, gain[2], gain[0], gain[1])
+			_pending_roll = event
+			dice3d.roll(event.dice)
 		"hamlet", "town", "road", "festival":
 			_flash(event.kind)
 			if event.kind == "festival":
@@ -322,6 +333,26 @@ func on_event(event: Dictionary) -> void:
 		"end":
 			if state.turn == 1:
 				say("Market day: %s at 2 for 1" % Rules.LABEL[state.market])
+
+
+func _on_dice_shown(_total: int) -> void:
+	var event := _pending_roll
+	if event.is_empty():
+		return
+	dice.roll(event.dice)
+	dice.tumble = 0.0
+	if event.sum == 7:
+		say("A storm is coming!")
+	roll_landed.emit(event)
+	# Cards follow the harvest from each hamlet to its owner's row.
+	for tid in event.got:
+		for gain in event.got[tid]:
+			_fly(state.tile(tid).res, gain[2], gain[0], gain[1], Island.HARVEST_FLIGHT + 0.5)
+
+
+## Whether the TV is still showing a throw; bots wait for it.
+func busy() -> bool:
+	return dice3d.busy()
 
 
 func refresh() -> void:
@@ -413,7 +444,7 @@ func _flash(kind: String) -> void:
 
 
 ## Little resource cards fly from where they were made to whoever gets them.
-func _fly(res: String, vert_id: int, player_index: int, count: int) -> void:
+func _fly(res: String, vert_id: int, player_index: int, count: int, delay := 0.35) -> void:
 	var island: Island = game.island
 	if not island or not island.camera:
 		return
@@ -428,7 +459,9 @@ func _fly(res: String, vert_id: int, player_index: int, count: int) -> void:
 		card.scale = Vector2(0.3, 0.3)
 		root.add_child(card)
 		var tw := create_tween()
-		tw.tween_interval(0.35 + k * 0.15)
+		card.modulate.a = 0.0
+		tw.tween_interval(delay + k * 0.15)
+		tw.tween_property(card, "modulate:a", 1.0, 0.01)
 		tw.tween_property(card, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		tw.tween_property(card, "position", from - card.size / 2.0 + Vector2(0, -50), 0.25)
 		tw.tween_property(card, "position", to - card.size / 2.0, 0.7).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)

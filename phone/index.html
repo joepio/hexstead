@@ -10,39 +10,52 @@
 <body>
 <header class="bar">
   <span class="dot" id="you-dot"></span>
-  <div class="who">
-    <strong id="you-name">Hexstead</strong>
-    <span id="turn-line">Connecting to the table…</span>
-  </div>
+  <strong id="you-name">Hexstead</strong>
   <div class="score"><b id="you-vp">0</b><small id="goal">/8</small></div>
 </header>
 
 <main>
-  <section class="board-wrap">
-    <svg id="board" role="img" aria-label="The island"></svg>
-    <p class="pick" id="pick" hidden></p>
+  <!-- Nothing to do: look at the TV. -->
+  <section class="calm" id="calm">
+    <p class="calm-icon" aria-hidden="true">📺</p>
+    <p id="calm-text">Watch the TV</p>
   </section>
 
-  <section class="hand" id="hand" aria-label="Your cards"></section>
+  <!-- Your turn: one clear thing to do. -->
+  <section class="ask" id="ask" hidden>
+    <h1 id="ask-title"></h1>
+    <p class="hint" id="ask-hint"></p>
+    <div class="ask-body" id="ask-body"></div>
+  </section>
 
-  <section class="actions" id="actions"></section>
+  <!-- Picking a spot: the island, big, and whatever you touch is chosen. -->
+  <section class="picker" id="picker" hidden>
+    <h1 id="pick-title"></h1>
+    <div class="board-wrap" id="board-wrap">
+      <svg id="board" role="img" aria-label="The island"></svg>
+    </div>
+    <div class="row step">
+      <button class="ghost big" id="prev" aria-label="Previous spot">◀</button>
+      <button class="ghost big" id="next" aria-label="Next spot">▶</button>
+    </div>
+    <button class="main wide huge" id="place">Place here</button>
+    <button class="ghost wide" id="cancel" hidden>Back</button>
+  </section>
 
   <section class="trade" id="trade" hidden>
-    <h2>Trade with the bank</h2>
+    <h1>Trade with the bank</h1>
     <p class="hint" id="trade-hint">Give cards, get one of your choice.</p>
     <div class="trade-row"><span>Give</span><div class="chips" id="give"></div></div>
     <div class="trade-row"><span>Get</span><div class="chips" id="get"></div></div>
     <div class="row">
-      <button class="ghost" id="trade-close">Close</button>
+      <button class="ghost" id="trade-close">Back</button>
       <button class="main" id="trade-go" disabled>Trade</button>
     </div>
   </section>
-
-  <section class="table">
-    <ol id="players"></ol>
-    <ul id="log"></ul>
-  </section>
 </main>
+
+<!-- Your cards are the one secret on the table, so they always stay here. -->
+<footer class="hand" id="hand" aria-label="Your cards"></footer>
 
 <div class="toast" id="toast" role="status" hidden></div>
 

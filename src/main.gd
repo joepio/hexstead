@@ -27,6 +27,10 @@ var bot_step := 0.9
 var shot := ""
 var shot_moves := 0
 var shot_bolt := false
+## Seconds into a dice throw to take the shot at; negative means no throw.
+var shot_roll_at := -1.0
+## Which of the glowing hints the phone points at in the shot.
+var shot_aim := -1
 var _shown_event := {}
 
 
@@ -35,6 +39,7 @@ func _ready() -> void:
 	add_child(island)
 	hud = Hud.new()
 	add_child(hud)
+	hud.roll_landed.connect(_on_roll_landed)
 	var args := OS.get_cmdline_user_args()
 	var env_step := OS.get_environment("HEXSTEAD_BOT_STEP")
 	if env_step != "":
@@ -46,6 +51,8 @@ func _ready() -> void:
 			"--seed": seed_value = int(args[i + 1])
 			"--yaw": island.still = float(args[i + 1])
 			"--phone": phones["p1"] = 1
+			"--roll-at": shot_roll_at = float(args[i + 1])
+			"--aim": shot_aim = int(args[i + 1])
 			"--bolt": shot_bolt = true
 	if GameNight.launched_by_daemon:
 		GameNight.daemon_connected.connect(_declare_phone_page)
@@ -149,6 +156,9 @@ func _on_phone_message(player_id: String, data: Variant) -> void:
 		return
 	for p in state.players:
 		if p.id == player_id:
+			if data.get("a", "") == "aim":
+				_aim(p.index, str(data.get("kind", "")), int(data.get("id", 0)))
+				return
 			var why := act(p.index, data)
 			if why != "":
 				GameNight.send_companion_message({t = "error", text = why}, player_id)
@@ -187,13 +197,14 @@ func _show(event: Dictionary) -> void:
 		return
 	_shown_event = event
 	island.sync(state, shot == "")
-	match event.kind:
-		"roll":
-			island.celebrate(event.got.keys())
-			if event.sum == 7:
-				island.lightning()
 	hud.on_event(event)
 	_update_targets()
+
+
+func _on_roll_landed(event: Dictionary) -> void:
+	island.harvest(state, event.got)
+	if event.sum == 7:
+		island.lightning()
 
 
 ## Show everyone where a phone player on turn may build.
@@ -208,6 +219,23 @@ func _update_targets() -> void:
 			island.show_targets(state, kind, legal[kind])
 			return
 	island.hide_targets()
+
+
+## A phone points at a spot while its player picks; show it on the TV.
+func _aim(i: int, kind: String, id: int) -> void:
+	if i != state.turn:
+		return
+	var legal: Dictionary = state.view(i).legal
+	var ids: Array = legal.get(kind, []) if typeof(legal.get(kind)) == TYPE_ARRAY else []
+	if ids.is_empty():
+		# Back out of building: the hints go, except the ones setup always shows.
+		if state.phase == "build":
+			island.hide_targets()
+		else:
+			island.aim(0)
+		return
+	island.show_targets(state, kind, ids)
+	island.aim(id if ids.has(id) else 0)
 
 
 func bot_turn(i: int) -> bool:
@@ -226,7 +254,7 @@ func _process(delta: float) -> void:
 	var p := state.player(state.turn)
 	if not p.bot and not has_phone(p):
 		away_clock += delta
-	if bot_turn(state.turn):
+	if bot_turn(state.turn) and not hud.busy() and not island.busy():
 		bot_clock += delta
 		if bot_clock >= bot_step:
 			bot_clock = 0.0
@@ -261,12 +289,36 @@ func _take_shot() -> void:
 		# Stop on the phone player's turn, so the hints show.
 		if moves >= shot_moves and not state.player(state.turn).bot:
 			break
+	if shot_roll_at >= 0.0:
+		# Play on to a throw that gives somebody something.
+		while state.phase != "over":
+			var i := state.turn
+			if state.phase == "roll":
+				state.act(i, {a = "roll"})
+				if not state.last_event.got.is_empty() and state.last_event.sum != 7:
+					break
+				continue
+			var choice := Bot.choose(state, i)
+			if choice.is_empty() or state.act(i, choice) != "":
+				state.act(i, {a = "end"})
 	island.sync(state, false)
 	_update_targets()
+	if shot_aim >= 0 and not island.target_ids.is_empty():
+		island.aim(island.target_ids[mini(shot_aim, island.target_ids.size() - 1)])
 	hud.bind(state, self)
-	hud.on_event(state.last_event)
-	for _f in 90:
+	for _f in 60:
 		await get_tree().process_frame
+	hud.on_event(state.last_event)
+	if shot_roll_at >= 0.0:
+		# Software rendering is slow; slow the clock so the shot lands on time.
+		Engine.time_scale = 0.03
+		var seen := 0.0
+		while seen < shot_roll_at:
+			await get_tree().process_frame
+			seen += get_process_delta_time()
+	else:
+		for _f in 30:
+			await get_tree().process_frame
 	if shot_bolt and island.storm:
 		island.storm.get_node("Bolt").show()
 		island.storm.get_node("Flash").light_energy = 4.0

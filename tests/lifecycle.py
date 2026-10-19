@@ -84,6 +84,12 @@ async def run(godot: str, pack: str = "") -> None:
             err = await expect("companion_message", lambda m: m["data"].get("t") == "error")
             print("ok: refused:", err["data"]["text"])
 
+            # Pointing at spots while picking only moves the hint on the TV.
+            for aim in [view["legal"]["hamlet"][1], 99999, view["legal"]["hamlet"][0]]:
+                await send({"type": "companion_message", "player_id": "joep", "data": {"a": "aim", "kind": "hamlet", "id": aim}})
+            await send({"type": "companion_message", "player_id": "joep", "data": {"a": "aim", "kind": "storm", "id": 1}})
+            print("ok: aiming is quiet")
+
             spot = view["legal"]["hamlet"][0]
             await send({"type": "companion_message", "player_id": "joep", "data": {"a": "hamlet", "id": spot}})
             view = (await expect("companion_message", lambda m: m["data"].get("phase") == "setup_road"))["data"]

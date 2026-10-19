@@ -9,7 +9,7 @@ const S := 2.0
 ## Height of every field's surface. Corners and roads sit here.
 const GROUND := 0.5
 ## Fields stop this far below their corners so seams show between them.
-const BEVEL := 0.07
+const BEVEL := 0.035
 const CLIFF_BOTTOM := -1.6
 
 const C := {
@@ -96,7 +96,7 @@ static func field(res: String, centre_board: Vector2, seed_value: int, bottom :=
 	var kit := MeshKit.new(seed_value)
 	var c := centre_board * S
 	var r := S
-	var top_r := r * 0.955
+	var top_r := r * 0.985
 	var base := _base_color(res)
 	var ground := func(p: Vector2) -> float:
 		var d := (p - c).length() / top_r
@@ -118,7 +118,9 @@ static func field(res: String, centre_board: Vector2, seed_value: int, bottom :=
 	# Bevel down to the field's true edge, then the earthen sides the cards show.
 	var outer := hex_ring(c, r)
 	var inner := hex_ring(c, top_r)
-	var edge_col: Color = base[2].darkened(0.1)
+	# The rim is the field's own colour, a shade darker: a thin seam between
+	# fields rather than a groove that reads as a ridge.
+	var edge_col: Color = base[0].darkened(0.12)
 	for k in 6:
 		var a0: Vector2 = inner[k]
 		var b0: Vector2 = inner[(k + 1) % 6]
@@ -521,6 +523,46 @@ static func _lake(kit: MeshKit, place: Placer) -> Array:
 	water.position = Vector3(c.x, GROUND - 0.1, c.y)
 	water.set_meta("water", true)
 	return [water]
+
+
+## What a field gives, as a little thing that flies to a hamlet.
+static func harvest_piece(res: String) -> ArrayMesh:
+	var kit := MeshKit.new(7)
+	match res:
+		"timber":
+			# Two logs, lying down.
+			for z in [-0.12, 0.12]:
+				kit.xform = Transform3D(Basis(Vector3.BACK, PI / 2), Vector3(0.28, 0.12, z))
+				kit.frustum(Vector3.ZERO, 0.11, 0.11, 0.56, 7, C.trunk, C.hay)
+			kit.xform = Transform3D(Basis(Vector3.BACK, PI / 2), Vector3(0.28, 0.32, 0))
+			kit.frustum(Vector3.ZERO, 0.11, 0.11, 0.56, 7, C.wood, C.hay)
+			kit.reset()
+		"clay":
+			kit.box(Vector3(0, 0.08, 0), Vector3(0.42, 0.16, 0.22), C.brick, C.clay_light)
+			kit.box(Vector3(0.05, 0.24, 0.02), Vector3(0.42, 0.16, 0.22), C.brick, C.clay_light)
+		"wool":
+			kit.blob(Vector3(0, 0.18, 0), Vector3(0.24, 0.18, 0.2), C.wool, 0.25, 4, 7)
+		"grain":
+			kit.frustum(Vector3.ZERO, 0.08, 0.16, 0.42, 7, C.grain_dark, C.grain_light)
+			kit.box(Vector3(0, 0.16, 0), Vector3(0.2, 0.05, 0.2), C.wood_dark)
+		"ore":
+			kit.rock(Vector3.ZERO, 0.26, C.rock_light)
+	return kit.commit()
+
+
+## A flat hexagonal band, for marking a whole field.
+static func hex_band(outer_r: float, inner_r: float) -> ArrayMesh:
+	var kit := MeshKit.new(1)
+	kit.jitter = 0.0
+	var outer := hex_ring(Vector2.ZERO, outer_r)
+	var inner := hex_ring(Vector2.ZERO, inner_r)
+	for k in 6:
+		var a1: Vector2 = outer[k]
+		var b1: Vector2 = outer[(k + 1) % 6]
+		var a0: Vector2 = inner[k]
+		var b0: Vector2 = inner[(k + 1) % 6]
+		kit.quad(Vector3(a1.x, 0, a1.y), Vector3(b1.x, 0, b1.y), Vector3(b0.x, 0, b0.y), Vector3(a0.x, 0, a0.y), Color.WHITE)
+	return kit.commit()
 
 
 # --- Beach and sea --------------------------------------------------------

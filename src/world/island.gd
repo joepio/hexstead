@@ -27,6 +27,7 @@ var spinners: Array = []
 var ground_mat: StandardMaterial3D
 var lake_mat: ShaderMaterial
 var marker_mat: StandardMaterial3D
+var aim_mat: StandardMaterial3D
 var centre := Vector3.ZERO
 var radius := 10.0
 var sway := 0.0
@@ -55,6 +56,11 @@ func _ready() -> void:
 	marker_mat.albedo_color = Color(1, 0.97, 0.8, 0.85)
 	marker_mat.emission_enabled = true
 	marker_mat.emission = Color(1, 0.9, 0.55)
+	aim_mat = StandardMaterial3D.new()
+	aim_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	aim_mat.albedo_color = Color(1, 1, 0.92)
+	aim_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	marker_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_setup_world()
 
 
@@ -446,6 +452,66 @@ func _make_storm() -> Node3D:
 	return node
 
 
+## Seconds from the dice landing until the harvest reaches the hamlets.
+const HARVEST_FLIGHT := 1.1
+var _harvest_until := 0.0
+
+
+func busy() -> bool:
+	return sway < _harvest_until
+
+
+## The fields the dice picked rise up and grow, and what they give flies out
+## to each hamlet and town on them. `got` is the rules' tile id -> [[player,
+## count, corner id]].
+func harvest(s: Rules, got: Dictionary) -> void:
+	celebrate(got.keys())
+	_harvest_until = sway + HARVEST_FLIGHT + 1.6
+	for tid in got:
+		var tile: Node3D = tiles.get(tid)
+		if not tile:
+			continue
+		var pivot := tile_pos(s, tid)
+		_lift(tile, pivot)
+		var res: String = s.tile(tid).res
+		var k := 0
+		for gain in got[tid]:
+			for n in int(gain[1]):
+				_send_piece(res, pivot + Vector3(0, 1.0, 0), vert_pos(s, int(gain[2])) + Vector3(0, 0.6, 0), 0.35 + k * 0.12)
+				k += 1
+
+
+## Rise and grow around the field's own middle, hold, and sink back.
+func _lift(tile: Node3D, pivot: Vector3) -> void:
+	var set_lift := func(t: float) -> void:
+		var grow := 1.0 + 0.16 * t
+		tile.transform = Transform3D(Basis.from_scale(Vector3.ONE * grow), Vector3(pivot.x, 0, pivot.z) * (1.0 - grow) + Vector3(0, 0.55 * t, 0))
+	var tw := tile.create_tween()
+	tw.tween_method(set_lift, 0.0, 1.0, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(HARVEST_FLIGHT + 0.5)
+	tw.tween_method(set_lift, 1.0, 0.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+
+
+func _send_piece(res: String, from: Vector3, to: Vector3, delay: float) -> void:
+	var piece := MeshInstance3D.new()
+	piece.mesh = Art.harvest_piece(res)
+	piece.material_override = ground_mat
+	piece.position = from
+	piece.scale = Vector3.ZERO
+	land.add_child(piece)
+	var hop := func(t: float) -> void:
+		var p := from.lerp(to, t)
+		p.y += sin(t * PI) * 1.6
+		piece.position = p
+		piece.rotation.y = t * TAU
+	var tw := piece.create_tween()
+	tw.tween_interval(delay)
+	tw.tween_property(piece, "scale", Vector3.ONE * 1.6, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_method(hop, 0.0, 1.0, 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(piece, "scale", Vector3.ZERO, 0.15)
+	tw.tween_callback(piece.queue_free)
+
+
 ## Fields that produced glow and their tokens hop.
 func celebrate(tile_ids: Array) -> void:
 	for id in tile_ids:
@@ -492,9 +558,20 @@ func _clear_markers() -> void:
 
 
 ## Glowing hints for where the player on turn may build: corners, sides or
-## fields (for the storm).
+## fields (for the storm). The one their phone points at is big and bright.
+var target_kind := ""
+var target_ids: Array = []
+var target_nodes := {}
+var aimed := 0
+
+
 func show_targets(s: Rules, kind: String, ids: Array) -> void:
+	if kind == target_kind and ids == target_ids and markers.get_child_count():
+		return
 	_clear_markers()
+	target_kind = kind
+	target_ids = ids.duplicate()
+	target_nodes.clear()
 	for id in ids:
 		var m := MeshInstance3D.new()
 		m.material_override = marker_mat
@@ -505,7 +582,7 @@ func show_targets(s: Rules, kind: String, ids: Array) -> void:
 				ring.inner_radius = 0.14
 				ring.outer_radius = 0.22
 				ring.rings = 16
-				ring.ring_segments = 6
+				ring.ring_segments = 8
 				m.mesh = ring
 				m.position = vert_pos(s, id) + Vector3(0, 0.1, 0)
 				if kind == "town":
@@ -520,18 +597,35 @@ func show_targets(s: Rules, kind: String, ids: Array) -> void:
 				m.position = (a + b) / 2.0 + Vector3(0, 0.1, 0)
 				m.rotation.y = -atan2(b.z - a.z, b.x - a.x)
 			"storm":
-				var ring := TorusMesh.new()
-				ring.inner_radius = 1.25
-				ring.outer_radius = 1.35
-				ring.rings = 6
-				ring.ring_segments = 4
-				m.mesh = ring
-				m.position = tile_pos(s, id) + Vector3(0, 0.15, 0)
+				m.mesh = Art.hex_band(S * 0.8, S * 0.7)
+				m.position = tile_pos(s, id) + Vector3(0, 0.12, 0)
 		markers.add_child(m)
+		target_nodes[id] = m
+	var keep := aimed
+	aimed = 0
+	aim(keep)
+
+
+## Point at one of the hints: it grows and glows, the others fade back.
+func aim(id: int) -> void:
+	if id == aimed:
+		return
+	aimed = id
+	for key in target_nodes:
+		var m: MeshInstance3D = target_nodes[key]
+		var on: bool = key == id
+		m.material_override = aim_mat if on else marker_mat
+		var big := 2.2 if target_kind in ["hamlet", "town"] else 1.6 if target_kind == "road" else 1.12
+		var tw := m.create_tween()
+		tw.tween_property(m, "scale", Vector3.ONE * (big if on else 1.0), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func hide_targets() -> void:
 	_clear_markers()
+	target_kind = ""
+	target_ids = []
+	target_nodes.clear()
+	aimed = 0
 
 
 func _process(delta: float) -> void:
