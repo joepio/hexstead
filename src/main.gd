@@ -61,6 +61,7 @@ func _ready() -> void:
 		GameNight.resumed.connect(func(_s): phase = "running")
 		GameNight.paused.connect(func(_s): phase = "paused")
 		GameNight.disposed.connect(_on_disposed)
+		GameNight.players_updated.connect(_on_players_updated)
 		GameNight.companion_message.connect(_on_phone_message)
 		GameNight.companion_presence.connect(_on_phone_presence)
 	else:
@@ -172,6 +173,22 @@ func _on_prepared(session_id: String, seats: Array, players: Array) -> void:
 	_new_game()
 	phase = "ready"
 	GameNight.notify_ready(session_id)
+
+
+## A profile picked up in the lobby: same seat, new name. Board colours stay,
+## so nobody's roads change colour halfway through.
+func _on_players_updated(players: Array) -> void:
+	for player in players:
+		var id := str(player.get("id", ""))
+		var new_name := str(player.get("name", ""))
+		if id == "" or new_name == "":
+			continue
+		for p in roster + (state.players if state != null else []):
+			if str(p.get("id", "")) == id:
+				p.name = new_name
+	if state != null:
+		hud.bind(state, self) # rebuilds the name rows only
+		_broadcast()
 
 
 func _on_disposed(_s: String) -> void:
