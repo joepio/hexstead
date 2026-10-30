@@ -204,8 +204,32 @@ func act(i: int, action: Dictionary) -> String:
 		_show(state.last_event)
 		_broadcast()
 		if state.phase == "over" and before != "over" and session != "":
+			_save_stats()
 			GameNight.notify_finished(session)
 	return why
+
+
+## Each player's own record, kept with their profile between nights (the
+## shape is in save-schema.json): games finished, games won, best score.
+func _save_stats() -> void:
+	for p in state.players:
+		var id := str(p.get("id", ""))
+		if p.bot or id == "":
+			continue
+		var stats: Variant = GameNight.player_data(id, {})
+		if not stats is Dictionary:
+			stats = {}
+		stats.played = int(stats.get("played", 0)) + 1
+		if state.winner == p.index:
+			stats.wins = int(stats.get("wins", 0)) + 1
+		stats.bestPoints = maxi(int(stats.get("bestPoints", 0)), Rules.vp(p))
+		GameNight.save_player_data(id, stats)
+
+
+## How many games this player has won, over all nights.
+func wins(p: Dictionary) -> int:
+	var stats: Variant = GameNight.player_data(str(p.get("id", "")), {})
+	return int(stats.get("wins", 0)) if stats is Dictionary else 0
 
 
 ## Animate what just happened on the TV.

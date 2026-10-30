@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hexstead progress",
+  "description": "What Hexstead keeps per player between nights (save_player_data).",
+  "$defs": {
+    "progress": {
+      "type": "object",
+      "properties": {
+        "played": { "type": "integer", "description": "Games finished" },
+        "wins": { "type": "integer", "description": "Games won" },
+        "bestPoints": { "type": "integer", "description": "Most victory points in one game" }
+      }
+    }
+  }
+}

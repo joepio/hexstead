@@ -371,6 +371,8 @@ func refresh() -> void:
 			status = "on phone" if game.has_phone(p) else "no phone yet"
 		if state.winner == p.index:
 			status = "wins!"
+		if state.phase == "over" and not p.bot and game.wins(p) > 0:
+			status += "  %d won" % game.wins(p)
 		row.find_child("Status", true, false).text = status
 	market_card.title = "Market Day"
 	market_card.art = art(state.market)
