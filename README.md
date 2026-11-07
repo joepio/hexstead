@@ -1,8 +1,8 @@
 # Hexstead
 
-A building and trading game for 2 to 6 players on GameNight. The TV shows a
+A building and trading game for 2 to 6 players on Gamepad Party. The TV shows a
 new hex island in 3D every round; each player's cards and choices are on
-their own phone, through GameNight's phone screens. Godot 4.5 (CI pins 4.5.2), MIT licensed.
+their own phone, through Gamepad Party's phone screens. Godot 4.5 (CI pins 4.5.2), MIT licensed.
 
 Everything you see is built from code: fields, trees, sheep, windmills,
 mountains, houses and the card pictures are low-poly meshes made by
@@ -44,7 +44,7 @@ phone player has to pick a corner, side or field, the TV shows the choices
 glowing so the table can follow along.
 
 The game declares `phone/` as its phone screen (`declare_companion`), copied
-to the user folder first because GameNight serves it from disk. The phone
+to the user folder first because Gamepad Party serves it from disk. The phone
 shows your hand as illustrated cards, a tappable board that highlights where
 you may build, dice, the bank and the scoreboard. The game checks every move;
 the page only draws the view it is sent.
@@ -59,7 +59,7 @@ than three players, bots fill up to three.
 | --- | --- |
 | `src/rules.gd` | The rules, no nodes; ids are 1-based to match the phone page |
 | `src/bot.gd` | The bot |
-| `src/main.gd` | GameNight session, phones, bots, screenshot mode |
+| `src/main.gd` | Gamepad Party session, phones, bots, screenshot mode |
 | `src/world/` | `mesh_kit.gd` (low-poly builder), `art.gd` (everything on the island), `island.gd` (scene, camera, animations), `water.gdshader` |
 | `src/hud/` | Scoreboard, market card, price list, dice |
 | `phone/` | The phone page; `phone/art/*.png` are rendered by `tools/card_art.gd` |
@@ -74,11 +74,11 @@ tools/shot.sh out.png --moves 60 --seed 5        # render the TV (xvfb + Vulkan,
 xvfb-run -a godot --rendering-driver vulkan --path . --script tools/card_art.gd   # re-render card art
 ```
 
-Under GameNight (`GAMENIGHT=1`) the SDK reads the launch environment, the
+Under Gamepad Party (`GAMENIGHT=1`) the SDK reads the launch environment, the
 game prepares hidden, shows on Start and reports `finished` when someone wins.
 `HEXSTEAD_BOT_STEP` sets seconds per bot move (default 0.9).
 
-The GameNight addon in `addons/gamenight` is a copy of the SDK. Update it from
+The Gamepad Party addon in `addons/gamenight` is a copy of the SDK. Update it from
 a gamenight checkout with `python sdk/godot/sync.py path/to/hexstead`; CI
 fails when it drifts.
 

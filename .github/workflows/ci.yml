@@ -9,7 +9,7 @@ permissions:
   contents: read
 jobs:
   gamenight-sdk:
-    uses: ontola/gamenight/.github/workflows/godot-sdk-check.yml@main
+    uses: ontola/gamepad-party/.github/workflows/godot-sdk-check.yml@main
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install Godot and the Windows export templates
-        uses: ontola/gamenight/.github/actions/setup-godot@main
+        uses: ontola/gamepad-party/.github/actions/setup-godot@main
         with:
           version: 4.5.2
           export-templates: windows_release_x86_64.exe windows_release_x86_64_console.exe
