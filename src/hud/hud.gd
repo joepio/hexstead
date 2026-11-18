@@ -415,7 +415,7 @@ func _process(_delta: float) -> void:
 	elif game.has_phone(p):
 		turn_hint.text = "Choosing on their phone"
 	elif game.away_clock < game.AWAY_GRACE:
-		turn_hint.text = "Open the Gamepad Party app on your phone (%d)" % ceili(game.AWAY_GRACE - game.away_clock)
+		turn_hint.text = "Open the Splitscreen Club app on your phone (%d)" % ceili(game.AWAY_GRACE - game.away_clock)
 	else:
 		turn_hint.text = "Phone away, a bot plays this turn"
 
