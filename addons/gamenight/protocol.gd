@@ -112,6 +112,16 @@ const ACTIVITY_KIND_ROUND := "round"
 const ACTIVITY_KIND_ACTION := "action"
 const ACTIVITY_KIND_GAME := "game"
 
+## BackChordAction
+const BACK_CHORD_ACTION_NEXT := "next"
+const BACK_CHORD_ACTION_PREVIOUS := "previous"
+const BACK_CHORD_ACTION_LEAVE := "leave"
+
+## BackChordButton
+const BACK_CHORD_BUTTON_RB := "rb"
+const BACK_CHORD_BUTTON_LB := "lb"
+const BACK_CHORD_BUTTON_B := "b"
+
 ## GameIssueKind
 const GAME_ISSUE_KIND_CLOSED := "closed"
 const GAME_ISSUE_KIND_DISCONNECTED := "disconnected"
