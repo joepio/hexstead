@@ -80,12 +80,13 @@ var session := ""
 var phase := "idle"
 var _frames: Dictionary = {}
 var _frame_at := -10000
-## True when this process was launched by a GameNight daemon (GAMENIGHT=1).
+## True when launched by the daemon or embedded by a Splitscreen Club web host.
 ## Games use this to skip their menu and boot straight into party mode.
 var launched_by_daemon: bool = false
 
 var _launch_token: String = ""
 
+var _browser_transport = preload("browser_transport.gd").new()
 var _socket: WebSocketPeer
 var _said_hello := false
 var _reconnect_at := 0.0
@@ -102,7 +103,7 @@ func _reset_performance(session_id: String) -> void:
 	_performance_sent_us = 0
 	_performance = {"frames":0,"elapsed_us":0,"slow_frames":0,"max_frame_us":0,
 		"cpu":OS.get_processor_name().left(128),"gpu":RenderingServer.get_video_adapter_name().left(128),
-		"os":OS.get_name(),"memory_mib":int(OS.get_memory_info().get("physical",0)/1048576)}
+		"os":OS.get_name(),"memory_mib":0 if OS.has_feature("web") else int(OS.get_memory_info().get("physical",0)/1048576)}
 
 func _sample_performance() -> void:
 	var now_us := Time.get_ticks_usec()
@@ -127,6 +128,7 @@ func _sample_performance() -> void:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	if _open_browser_parent(): return
 	# The daemon passes the handshake via environment — same binary boots
 	# into game-night mode when launched, runs standalone otherwise.
 	launched_by_daemon = OS.get_environment(PROTOCOL.ENV_GAMENIGHT) == "1"
@@ -145,9 +147,22 @@ func _ready() -> void:
 		return
 	_open()
 
+func _open_browser_parent() -> bool:
+	if not _browser_transport.attach(_handle): return false
+	launched_by_daemon = true
+	auto_reconnect = false
+	_browser_hello.call_deferred() # Let the game set its catalog ID and connect lifecycle signals.
+	return true
+
+func _browser_hello() -> void:
+	await get_tree().process_frame
+	_said_hello = true
+	_send({"type": PROTOCOL.MSG_HELLO, "role": PROTOCOL.ROLE_GAME, "game": game_id, "protocol_version": PROTOCOL_VERSION})
+
 ## Connect a hand-started game to the host at [member daemon_url] after all,
 ## for example from a debug menu. GameNight-launched games are always online.
 func connect_to_host() -> void:
+	if _browser_transport.attached(): return
 	auto_reconnect = true
 	if _socket == null:
 		_open()
@@ -163,6 +178,9 @@ func _open() -> void:
 		_schedule_reconnect()
 
 func _process(_delta: float) -> void:
+	if _browser_transport.attached():
+		_sample_performance()
+		return
 	if _socket == null:
 		if auto_reconnect and Time.get_ticks_msec() / 1000.0 >= _reconnect_at:
 			_open()
@@ -608,6 +626,10 @@ static func button(frame: Dictionary, index: int) -> bool:
 
 
 func _send(msg: Dictionary) -> void:
+	if _browser_transport.attached():
+		if _said_hello:
+			_browser_transport.send(msg)
+		return
 	if _socket != null and _socket.get_ready_state() == WebSocketPeer.STATE_OPEN:
 		_socket.send_text(JSON.stringify(msg))
 

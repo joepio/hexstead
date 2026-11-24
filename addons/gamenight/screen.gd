@@ -61,8 +61,8 @@ var _screen_owned := false
 var _fps_before_warm: int = 0
 
 ## No window server, no window manners: the retry loops wait on a mode change
-## that a headless run can never report. Tests and CI take this path.
-var _headless: bool = DisplayServer.get_name() == "headless"
+## that a headless run or browser iframe cannot report. Both still manage audio and FPS.
+var _headless: bool = DisplayServer.get_name() == "headless" or OS.has_feature("web")
 
 
 func _ready() -> void:
